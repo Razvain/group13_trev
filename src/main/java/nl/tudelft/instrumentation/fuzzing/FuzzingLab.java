@@ -1,7 +1,6 @@
 package nl.tudelft.instrumentation.fuzzing;
 
 import java.util.*;
-import java.util.Random;
 
 /**
  * You should write your own solution using this class.
@@ -11,6 +10,7 @@ public class FuzzingLab {
         static List<String> currentTrace;
         static int traceLength = 10;
         static boolean isFinished = false;
+        static float distance = 0;
 
         static void initialize(String[] inputSymbols){
                 // Initialise a random trace from the input symbols of the problem.
@@ -22,7 +22,62 @@ public class FuzzingLab {
          */
         static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
                 // do something useful
-                System.out.println(condition.toString());
+                System.out.println(currentTrace);
+                distance += calculateDistance(condition, value, line_nr);
+        }
+
+        static float calculateDistance(MyVar condition, boolean value, int line_nr) {
+                // Add your code here to calculate the distance between two traces.
+                switch (condition.type.getValue()) {
+                        case 1:
+                                // Boolean
+                                return condition.value == value ? 0 : 1;
+                        case 2:
+                                // Integer
+                                return (float) condition.int_value;
+                        case 3:
+                                //String
+                                int asciiSum = 0;
+                                for(int i = 0; i < condition.str_value.length(); i++) {
+                                        asciiSum += (int) condition.str_value.charAt(i);
+                                }
+                                return (float) asciiSum;
+                        case 4:
+                                //Unary
+                                return 1 - normalizeDistance(calculateDistance(condition.left, value, line_nr));
+                        case 5:
+                                //Binary
+                                switch (condition.operator) {
+                                        case "==":
+                                                return Math.abs(calculateDistance(condition.left, value, line_nr) - calculateDistance(condition.right, value, line_nr));
+                                        case "!=":
+                                                return calculateDistance(condition.left, value, line_nr) != calculateDistance(condition.right, value, line_nr) ? 0 : 1;
+                                        case "<":
+                                                return calculateDistance(condition.left, value, line_nr) < calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.left, value, line_nr) - calculateDistance(condition.right, value, line_nr) + 3;
+                                        case "<=":
+                                                return calculateDistance(condition.left, value, line_nr) <= calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.left, value, line_nr) - calculateDistance(condition.right, value, line_nr);
+                                        case ">":
+                                                return calculateDistance(condition.left, value, line_nr) > calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.right, value, line_nr) - calculateDistance(condition.left, value, line_nr) + 3;
+                                        case ">=":
+                                                return calculateDistance(condition.left, value, line_nr) >= calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.right, value, line_nr) - calculateDistance(condition.left, value, line_nr);
+                                        case "&&":
+                                                return normalizeDistance(calculateDistance(condition.left, value, line_nr)) + normalizeDistance(calculateDistance(condition.right, value, line_nr));
+                                        case "||":
+                                                return Math.min(normalizeDistance(calculateDistance(condition.left, value, line_nr)), normalizeDistance(calculateDistance(condition.right, value, line_nr)));
+                                        case "XOR":
+                                                return Math.min(normalizeDistance(calculateDistance(condition.left, value, line_nr)) + normalizeDistance(calculateDistance(new MyVar(condition.right, "!"), value, line_nr)), normalizeDistance(calculateDistance(new MyVar(condition.left, "!"), value, line_nr)) + normalizeDistance(calculateDistance(condition.right, value, line_nr)));
+                                        default:
+                                                return 0;
+                                }
+                        default:
+                                System.out.println("Unknown");
+                                return -1;
+                }
+        }
+
+        static float normalizeDistance(float distance) {
+                // Add your code here to normalize the distance between two traces.
+                return distance / (distance + 1);
         }
 
         /**
@@ -59,6 +114,9 @@ public class FuzzingLab {
 
                 // Place here your code to guide your fuzzer with its search.
                 while(!isFinished) {
+                        DistanceTracker.runNextFuzzedSequence(
+                                        fuzz(DistanceTracker.inputSymbols).toArray(new String[0])
+                                        );
                         // Do things!
                         try {
                                 System.out.println("Woohoo, looping!");
