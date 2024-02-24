@@ -11,6 +11,11 @@ public class FuzzingLab {
         static int traceLength = 10;
         static boolean isFinished = false;
         static float distance = 0;
+        static float branches = 0;
+        static List<Integer> branch_occurrence = new ArrayList<Integer>();
+        static List<Float> branch_dist = new ArrayList<Float>();
+        static float final_distance = 0;
+        static List<String> best_trace;
 
         static void initialize(String[] inputSymbols){
                 // Initialise a random trace from the input symbols of the problem.
@@ -22,8 +27,17 @@ public class FuzzingLab {
          */
         static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
                 // do something useful
-                System.out.println(currentTrace);
+                //System.out.println(currentTrace);
+                if (!branch_occurrence.contains(line_nr)) {
+                        branch_occurrence.add(line_nr);
+                        branches += 1;
+                        branch_dist.add(calculateDistance(condition, value, line_nr));
+                }
+                System.out.println("New branches found: " + branches);
+                // System.out.println(branch_dist);
                 distance += calculateDistance(condition, value, line_nr);
+                System.out.println(currentTrace);
+                
         }
 
         static float calculateDistance(MyVar condition, boolean value, int line_nr) {
@@ -92,7 +106,52 @@ public class FuzzingLab {
                  * more branches. Right now we just generate a complete random sequence
                  * using the given input symbols. Please change it to your own code.
                  */
-                return generateRandomTrace(inputSymbols);
+                //  return generateRandomTrace(inputSymbols);
+                // List<String> newTrace = new ArrayList<String>(currentTrace);
+                // Random random = new Random();
+                // int numMutations = random.nextInt(inputSymbols.length / 2) + 1; 
+
+                // for (int i = 0; i < numMutations; i++) {
+                //         int index = random.nextInt(newTrace.size());
+                //         String newSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
+                //         newTrace.set(index, newSymbol);
+                // }
+                // currentTrace = newTrace;
+                // return newTrace;
+                List<String> mutatedTrace = new ArrayList<>(currentTrace);
+                Random random = new Random();
+                
+                
+                for (int i = 0; i < 3; i ++) {
+
+                int mutationType = random.nextInt(3);
+                switch (mutationType) {
+                        case 0: // Changing a symbol
+                        if (!mutatedTrace.isEmpty()) {
+                        int changeIndex = random.nextInt(mutatedTrace.size());
+                        String newSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
+                        mutatedTrace.set(changeIndex, newSymbol); }
+                        break;
+                        case 1: // Adding a symbol
+                        if (!mutatedTrace.isEmpty()) {
+                        int addIndex = random.nextInt(mutatedTrace.size() + 1); 
+                        String addedSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
+                        mutatedTrace.add(addIndex, addedSymbol);
+                        }
+                        break;
+                        case 2: // Deleting a symbol
+                        if (!mutatedTrace.isEmpty()) {
+                                int deleteIndex = random.nextInt(mutatedTrace.size());
+                                mutatedTrace.remove(deleteIndex);
+                        }
+                        break;
+                        default:
+                        break;
+                }
+        }
+                // currentTrace = mutatedTrace;
+                return mutatedTrace;
+
         }
 
         /**
@@ -105,20 +164,44 @@ public class FuzzingLab {
                 for (int i = 0; i < traceLength; i++) {
                         trace.add(symbols[r.nextInt(symbols.length)]);
                 }
+                // currentTrace = trace;
                 return trace;
         }
 
         static void run() {
                 initialize(DistanceTracker.inputSymbols);
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
-
+                final_distance = distance;
+                best_trace = currentTrace;
                 // Place here your code to guide your fuzzer with its search.
                 while(!isFinished) {
-                        DistanceTracker.runNextFuzzedSequence(
-                                        fuzz(DistanceTracker.inputSymbols).toArray(new String[0])
-                                        );
                         // Do things!
                         try {
+                                boolean status = false;
+                                List<String> storeTrace;
+                                for (int i = 0; i < 5; i++) {
+                                        storeTrace = fuzz(DistanceTracker.inputSymbols);
+                                        DistanceTracker.runNextFuzzedSequence(storeTrace.toArray(new String[0]));
+                                        if (distance < final_distance) {
+                                                final_distance = distance;
+                                                status = true;
+                                                best_trace = storeTrace;
+                                        }
+                                }
+
+                                if (status == false) {
+                                        currentTrace = generateRandomTrace(DistanceTracker.inputSymbols);
+                                } else {
+                                        currentTrace = best_trace;
+                                }
+                                
+                                // if (distance <= final_distance) {
+                                //         final_distance = distance;
+                                //         previousTrace = currentTrace;
+                                // } else {
+                                //         currentTrace = previousTrace;
+                                // }
+
                                 System.out.println("Woohoo, looping!");
                                 Thread.sleep(1000);
                         } catch (InterruptedException e) {
