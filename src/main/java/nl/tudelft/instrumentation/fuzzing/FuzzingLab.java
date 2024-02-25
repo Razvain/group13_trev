@@ -8,14 +8,16 @@ import java.util.*;
 public class FuzzingLab {
         static Random r = new Random();
         static List<String> currentTrace;
-        static int traceLength = 10;
+        static int traceLength = 15;
         static boolean isFinished = false;
         static float distance = 0;
         static float branches = 0;
-        static List<Integer> branch_occurrence = new ArrayList<Integer>();
+        // static List<Integer> branch_occurrence = new ArrayList<Integer>();
         static List<Float> branch_dist = new ArrayList<Float>();
         static float final_distance = 0;
         static List<String> best_trace;
+        static int iterations_stuck_local_min = 0;
+        static Map<Integer, String> branch_occurrence = new HashMap<>();
 
         static void initialize(String[] inputSymbols){
                 // Initialise a random trace from the input symbols of the problem.
@@ -27,17 +29,21 @@ public class FuzzingLab {
          */
         static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
                 // do something useful
-                //System.out.println(currentTrace);
-                if (!branch_occurrence.contains(line_nr)) {
-                        branch_occurrence.add(line_nr);
+                // System.out.println(currentTrace);
+                if (!branch_occurrence.containsKey(line_nr) || branch_occurrence.containsKey(line_nr) && branch_occurrence.get(line_nr).equals(String.valueOf(value))) {
+                        if(branch_occurrence.containsKey(line_nr)) {
+                                branch_occurrence.put(line_nr, "both");
+                        }
+                        else {
+                                branch_occurrence.put(line_nr, String.valueOf(value));
+                        }
                         branches += 1;
                         branch_dist.add(calculateDistance(condition, value, line_nr));
                 }
-                System.out.println("New branches found: " + branches);
-                // System.out.println(branch_dist);
+                // System.out.println("New branches found: " + branches);
                 distance += calculateDistance(condition, value, line_nr);
-                System.out.println(currentTrace);
-                
+                // System.out.println(branch_dist);
+                            
         }
 
         static float calculateDistance(MyVar condition, boolean value, int line_nr) {
@@ -63,17 +69,17 @@ public class FuzzingLab {
                                 //Binary
                                 switch (condition.operator) {
                                         case "==":
-                                                return Math.abs(calculateDistance(condition.left, value, line_nr) - calculateDistance(condition.right, value, line_nr));
+                                                return Math.abs(normalizeDistance(calculateDistance(condition.left, value, line_nr)) - normalizeDistance(calculateDistance(condition.right, value, line_nr)));
                                         case "!=":
                                                 return calculateDistance(condition.left, value, line_nr) != calculateDistance(condition.right, value, line_nr) ? 0 : 1;
                                         case "<":
-                                                return calculateDistance(condition.left, value, line_nr) < calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.left, value, line_nr) - calculateDistance(condition.right, value, line_nr) + 3;
+                                                return calculateDistance(condition.left, value, line_nr) < calculateDistance(condition.right, value, line_nr) ? 0 : (normalizeDistance(calculateDistance(condition.left, value, line_nr)) - normalizeDistance(calculateDistance(condition.right, value, line_nr)));
                                         case "<=":
-                                                return calculateDistance(condition.left, value, line_nr) <= calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.left, value, line_nr) - calculateDistance(condition.right, value, line_nr);
+                                                return calculateDistance(condition.left, value, line_nr) <= calculateDistance(condition.right, value, line_nr) ? 0 : (normalizeDistance(calculateDistance(condition.left, value, line_nr)) - normalizeDistance(calculateDistance(condition.right, value, line_nr)) + 5);
                                         case ">":
-                                                return calculateDistance(condition.left, value, line_nr) > calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.right, value, line_nr) - calculateDistance(condition.left, value, line_nr) + 3;
+                                                return calculateDistance(condition.left, value, line_nr) > calculateDistance(condition.right, value, line_nr) ? 0 : (normalizeDistance (calculateDistance(condition.right, value, line_nr)) - normalizeDistance(calculateDistance(condition.left, value, line_nr)));
                                         case ">=":
-                                                return calculateDistance(condition.left, value, line_nr) >= calculateDistance(condition.right, value, line_nr) ? 0 : calculateDistance(condition.right, value, line_nr) - calculateDistance(condition.left, value, line_nr);
+                                                return calculateDistance(condition.left, value, line_nr) >= calculateDistance(condition.right, value, line_nr) ? 0 : (normalizeDistance(calculateDistance(condition.right, value, line_nr)) - normalizeDistance(calculateDistance(condition.left, value, line_nr)) + 5);
                                         case "&&":
                                                 return normalizeDistance(calculateDistance(condition.left, value, line_nr)) + normalizeDistance(calculateDistance(condition.right, value, line_nr));
                                         case "||":
@@ -122,7 +128,7 @@ public class FuzzingLab {
                 Random random = new Random();
                 
                 
-                for (int i = 0; i < 3; i ++) {
+                for (int i = 0; i < 30; i ++) {
 
                 int mutationType = random.nextInt(3);
                 switch (mutationType) {
@@ -133,11 +139,9 @@ public class FuzzingLab {
                         mutatedTrace.set(changeIndex, newSymbol); }
                         break;
                         case 1: // Adding a symbol
-                        if (!mutatedTrace.isEmpty()) {
                         int addIndex = random.nextInt(mutatedTrace.size() + 1); 
                         String addedSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
                         mutatedTrace.add(addIndex, addedSymbol);
-                        }
                         break;
                         case 2: // Deleting a symbol
                         if (!mutatedTrace.isEmpty()) {
@@ -179,17 +183,25 @@ public class FuzzingLab {
                         try {
                                 boolean status = false;
                                 List<String> storeTrace;
-                                for (int i = 0; i < 5; i++) {
+                                for (int i = 0; i < 100; i++) {
+                                        distance = 0;
                                         storeTrace = fuzz(DistanceTracker.inputSymbols);
                                         DistanceTracker.runNextFuzzedSequence(storeTrace.toArray(new String[0]));
-                                        if (distance < final_distance) {
+                                        if (distance <= final_distance && !storeTrace.isEmpty() && distance != -1){
                                                 final_distance = distance;
                                                 status = true;
                                                 best_trace = storeTrace;
                                         }
                                 }
-
+                                
+        
                                 if (status == false) {
+                                        // if(iterations_stuck_local_min > 5) {
+                                        //         currentTrace = generateRandomTrace(DistanceTracker.inputSymbols);
+                                        //         iterations_stuck_local_min = 0;
+                                        // } else {
+                                        //         iterations_stuck_local_min += 1;
+                                        // }
                                         currentTrace = generateRandomTrace(DistanceTracker.inputSymbols);
                                 } else {
                                         currentTrace = best_trace;
@@ -201,11 +213,12 @@ public class FuzzingLab {
                                 // } else {
                                 //         currentTrace = previousTrace;
                                 // }
-
+                                System.out.println("New branches found: " + branches);
                                 System.out.println("Woohoo, looping!");
                                 Thread.sleep(1000);
                         } catch (InterruptedException e) {
                                 e.printStackTrace();
+                                
                         }
                 }
         }
