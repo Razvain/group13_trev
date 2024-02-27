@@ -16,7 +16,6 @@ public class FuzzingLab {
         static boolean isFinished = false;
         static float distance = 0;
         static float branches = 0;
-        // static List<Integer> branch_occurrence = new ArrayList<Integer>();
         static List<Float> branch_dist = new ArrayList<Float>();
         static float final_distance = 0;
         static List<String> best_trace;
@@ -34,8 +33,6 @@ public class FuzzingLab {
          * Write your solution that specifies what should happen when a new branch has been found.
          */
         static void encounteredNewBranch(MyVar condition, boolean value, int line_nr) {
-                // do something useful
-                // System.out.println(currentTrace);
                 if (!branch_occurrence.containsKey(line_nr) || branch_occurrence.containsKey(line_nr) && branch_occurrence.get(line_nr).equals(String.valueOf(value))) {
                         if(branch_occurrence.containsKey(line_nr)) {
                                 branch_occurrence.put(line_nr, "both");
@@ -46,9 +43,7 @@ public class FuzzingLab {
                         branches += 1;
                         branch_dist.add(calculateDistance(condition, value, line_nr));
                 }
-                // System.out.println("New branches found: " + branches);
                 distance += calculateDistance(condition, value, line_nr);
-                // System.out.println(branch_dist);
                             
         }
 
@@ -119,22 +114,11 @@ public class FuzzingLab {
                  * using the given input symbols. Please change it to your own code.
                  */
                 // return generateRandomTrace(inputSymbols);
-                // List<String> newTrace = new ArrayList<String>(currentTrace);
-                // Random random = new Random();
-                // int numMutations = random.nextInt(inputSymbols.length / 2) + 1; 
-
-                // for (int i = 0; i < numMutations; i++) {
-                //         int index = random.nextInt(newTrace.size());
-                //         String newSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
-                //         newTrace.set(index, newSymbol);
-                // }
-                // currentTrace = newTrace;
-                // return newTrace;
                 List<String> mutatedTrace = new ArrayList<>(currentTrace);
                 Random random = new Random();
                 
                 
-                for (int i = 0; i < 15; i ++) {
+                for (int i = 0; i < 55; i ++) {
 
                 int mutationType = random.nextInt(3);
                 switch (mutationType) {
@@ -159,7 +143,6 @@ public class FuzzingLab {
                         break;
                 }
         }
-                // currentTrace = mutatedTrace;
                 return mutatedTrace;
 
         }
@@ -174,7 +157,6 @@ public class FuzzingLab {
                 for (int i = 0; i < traceLength; i++) {
                         trace.add(symbols[r.nextInt(symbols.length)]);
                 }
-                // currentTrace = trace;
                 return trace;
         }
 
@@ -183,16 +165,12 @@ public class FuzzingLab {
                 DistanceTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
                 final_distance = distance;
                 best_trace = currentTrace;
-                // Place here your code to guide your fuzzer with its search.
+
                 while(System.currentTimeMillis() - startTime < 1 * 60000) {
-                        // Do things!
                         try {
-                                // DistanceTracker.runNextFuzzedSequence(
-                                // fuzz(DistanceTracker.inputSymbols).toArray(new String[0])
-                                // );
                                 boolean status = false;
                                 List<String> storeTrace;
-                                for (int i = 0; i < 50; i++) {
+                                for (int i = 0; i < 100; i++) {
                                         distance = 0;
                                         storeTrace = fuzz(DistanceTracker.inputSymbols);
                                         DistanceTracker.runNextFuzzedSequence(storeTrace.toArray(new String[0]));
@@ -201,27 +179,14 @@ public class FuzzingLab {
                                                 status = true;
                                                 best_trace = storeTrace;
                                         }
-                                }
-                                
+                                }                               
         
                                 if (status == false) {
-                                        // if(iterations_stuck_local_min > 5) {
-                                        //         currentTrace = generateRandomTrace(DistanceTracker.inputSymbols);
-                                        //         iterations_stuck_local_min = 0;
-                                        // } else {
-                                        //         iterations_stuck_local_min += 1;
-                                        // }
                                         currentTrace = generateRandomTrace(DistanceTracker.inputSymbols);
                                 } else {
                                         currentTrace = best_trace;
                                 }
-                                
-                                // if (distance <= final_distance) {
-                                //         final_distance = distance;
-                                //         previousTrace = currentTrace;
-                                // } else {
-                                //         currentTrace = previousTrace;
-                                // }
+
                                 System.out.println("New branches found: " + branches);
                                 System.out.println("Woohoo, looping!");
                                 Thread.sleep(1000);
@@ -249,7 +214,6 @@ public class FuzzingLab {
                         }
 
                 }
-                // System.out.println(out);
         }
 
         private static void writeToCSV(long timestamp, String matchedInteger) {
