@@ -1,6 +1,10 @@
 package nl.tudelft.instrumentation.fuzzing;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * You should write your own solution using this class.
@@ -8,7 +12,7 @@ import java.util.*;
 public class FuzzingLab {
         static Random r = new Random();
         static List<String> currentTrace;
-        static int traceLength = 15;
+        static int traceLength = 100;
         static boolean isFinished = false;
         static float distance = 0;
         static float branches = 0;
@@ -18,6 +22,8 @@ public class FuzzingLab {
         static List<String> best_trace;
         static int iterations_stuck_local_min = 0;
         static Map<Integer, String> branch_occurrence = new HashMap<>();
+        static long startTime = System.currentTimeMillis();
+        static Set<String> errorCodes = new HashSet<>();
 
         static void initialize(String[] inputSymbols){
                 // Initialise a random trace from the input symbols of the problem.
@@ -112,7 +118,7 @@ public class FuzzingLab {
                  * more branches. Right now we just generate a complete random sequence
                  * using the given input symbols. Please change it to your own code.
                  */
-                //  return generateRandomTrace(inputSymbols);
+                // return generateRandomTrace(inputSymbols);
                 // List<String> newTrace = new ArrayList<String>(currentTrace);
                 // Random random = new Random();
                 // int numMutations = random.nextInt(inputSymbols.length / 2) + 1; 
@@ -128,7 +134,7 @@ public class FuzzingLab {
                 Random random = new Random();
                 
                 
-                for (int i = 0; i < 30; i ++) {
+                for (int i = 0; i < 15; i ++) {
 
                 int mutationType = random.nextInt(3);
                 switch (mutationType) {
@@ -178,12 +184,15 @@ public class FuzzingLab {
                 final_distance = distance;
                 best_trace = currentTrace;
                 // Place here your code to guide your fuzzer with its search.
-                while(!isFinished) {
+                while(System.currentTimeMillis() - startTime < 1 * 60000) {
                         // Do things!
                         try {
+                                // DistanceTracker.runNextFuzzedSequence(
+                                // fuzz(DistanceTracker.inputSymbols).toArray(new String[0])
+                                // );
                                 boolean status = false;
                                 List<String> storeTrace;
-                                for (int i = 0; i < 100; i++) {
+                                for (int i = 0; i < 50; i++) {
                                         distance = 0;
                                         storeTrace = fuzz(DistanceTracker.inputSymbols);
                                         DistanceTracker.runNextFuzzedSequence(storeTrace.toArray(new String[0]));
@@ -229,6 +238,25 @@ public class FuzzingLab {
          * @param out the string that has been outputted in the standard out.
          */
         public static void output(String out){
-                System.out.println(out);
+                Pattern pattern = Pattern.compile(".*error_(\\d+).*");
+                Matcher matcher = pattern.matcher(out);
+                if (matcher.matches()) {
+                        String matchedInteger = matcher.group(1);
+                        if (!errorCodes.contains(matchedInteger)) {
+                                errorCodes.add(matchedInteger);
+                                long timestamp = (System.currentTimeMillis() - startTime) / 1000;
+                                writeToCSV(timestamp, matchedInteger);
+                        }
+
+                }
+                // System.out.println(out);
         }
+
+        private static void writeToCSV(long timestamp, String matchedInteger) {
+                try (FileWriter writer = new FileWriter("error_log.csv", true)) {
+                writer.write(timestamp + "," + matchedInteger + "\n");
+                } catch (IOException e) {
+                e.printStackTrace();
+                }
+    }
 }
