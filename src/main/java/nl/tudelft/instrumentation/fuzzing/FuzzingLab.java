@@ -166,7 +166,7 @@ public class FuzzingLab {
                 final_distance = distance;
                 best_trace = currentTrace;
 
-                while(System.currentTimeMillis() - startTime < 1 * 60000) {
+                while(System.currentTimeMillis() - startTime < 5 * 60000) {
                         try {
                                 boolean status = false;
                                 List<String> storeTrace;
@@ -217,7 +217,7 @@ public class FuzzingLab {
         }
 
         private static void writeToCSV(long timestamp, String matchedInteger) {
-                try (FileWriter writer = new FileWriter("error_log.csv", true)) {
+                try (FileWriter writer = new FileWriter("error_log_prob11.csv", true)) {
                 writer.write(timestamp + "," + matchedInteger + "\n");
                 } catch (IOException e) {
                 e.printStackTrace();
