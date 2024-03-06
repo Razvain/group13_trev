@@ -39,7 +39,8 @@ public class ConcolicExecutionLab {
         // Create an input var, these should be free variables!
         Context c = PathTracker.ctx;
 
-        Expr z3var = c.mkString(""); // change this line to the correct code for creating a z3var.
+        String nameA = name + "_" + PathTracker.z3counter++;
+        Expr z3var = c.mkConst(c.mkSymbol(nameA), s); // change this line to the correct code for creating a z3var.
         
         // The following code is to add an additional constraint on the input variable.
         // The input variable must have a value that is equal to one of the input symbols.
@@ -49,25 +50,51 @@ public class ConcolicExecutionLab {
         }
 
         PathTracker.addToModel(constraint);
+        MyVar myVar = new MyVar(z3var, nameA);
+        PathTracker.inputs.add(myVar);
 
-        return new MyVar(PathTracker.ctx.mkString(""));
+        return myVar;
     }
 
     static MyVar createBoolExpr(BoolExpr var, String operator){
+        Context c = PathTracker.ctx;
         // Handle the following unary operators: !
-        return new MyVar(PathTracker.ctx.mkFalse());
+        return new MyVar(PathTracker.ctx.mkNot(var));
     }
 
     static MyVar createBoolExpr(BoolExpr left_var, BoolExpr right_var, String operator){
         // Handle the following binary operators: &, &&, |, ||
-        return new MyVar(PathTracker.ctx.mkFalse());
+        switch (operator) {
+            case "&&":
+                return new MyVar(PathTracker.ctx.mkAnd(left_var, right_var));
+            case "||":
+                return new MyVar(PathTracker.ctx.mkOr(left_var, right_var));
+            case "|": 
+                BitVecExpr bitLeft = PathTracker.ctx.mkBV(left_var.getString(), 1);
+                BitVecExpr bitRight = PathTracker.ctx.mkBV(right_var.getString(), 1);
+                BitVecExpr result = PathTracker.ctx.mkBVOR(bitLeft, bitRight);
+                return new MyVar(result);
+            case "&":
+                BitVecExpr bitALeft = PathTracker.ctx.mkBV(left_var.getString(), 1);
+                BitVecExpr bitARight = PathTracker.ctx.mkBV(right_var.getString(), 1);
+                BitVecExpr resultA = PathTracker.ctx.mkBVAND(bitALeft, bitARight);
+                return new MyVar(resultA);
+            default:
+                return new MyVar(PathTracker.ctx.mkFalse());
+        }
     }
 
     static MyVar createIntExpr(IntExpr var, String operator){
         // Handle the following unary operators for numerical operations: +, -
-        if(operator.equals("+") || operator.equals("-"))
-            return new MyVar(PathTracker.ctx.mkInt(0));
-        return new MyVar(PathTracker.ctx.mkFalse());
+        switch (operator) {
+            case "+":
+                return new MyVar(PathTracker.ctx.mkInt(var.getString())); // nu stiu daka e corect, nu mai am timp sa ma uit peste el azi
+            case "-":
+                return new MyVar(PathTracker.ctx.mkInt("-" + var.getString()));
+            default:
+                return new MyVar(PathTracker.ctx.mkFalse());
+        }
+        
     }
 
     static MyVar createIntExpr(IntExpr left_var, IntExpr right_var, String operator){
@@ -78,11 +105,33 @@ public class ConcolicExecutionLab {
     }
 
     static MyVar createStringExpr(SeqExpr left_var, SeqExpr right_var, String operator){
-        // We only support String.equals
-        return new MyVar(PathTracker.ctx.mkFalse());
+       // We only support String.equals
+        System.out.println("Aici is da String");
+        System.out.println(left_var);
+        System.out.println(right_var);
+        System.out.println(operator);
+        return new MyVar(PathTracker.ctx.mkEq(left_var, right_var));
     }
 
     static void assign(MyVar var, String name, Expr value, Sort s){
+          System.out.println("Aici isi da assign");
+        System.out.println(var.name);
+        System.out.println(var.z3var);
+        System.out.println(name);
+        System.out.println(value);
+        System.out.println(s);
+
+        // For single static assignment, whenever you encounter an assignment to an already existing variable
+        // you create a new variable and assign it that value such that there is no confusion with the variable's
+        // scope
+        Expr z3var = PathTracker.ctx.mkConst(PathTracker.ctx.mkSymbol(name + "_" + PathTracker.z3counter++), s);
+        System.out.println(PathTracker.ctx.mkEq(z3var, value));
+        PathTracker.addToModel(PathTracker.ctx.mkEq(z3var, value));
+        // return new MyVar(z3var, name);
+
+
+
+        // return new MyVar(PathTracker.ctx.mkEq(PathTracker.ctx.mkConst()))
         // All variable assignments, use single static assignment
     }
 
