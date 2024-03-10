@@ -6,6 +6,9 @@ import java.util.concurrent.*;
 import com.microsoft.z3.*;
 import nl.tudelft.instrumentation.runner.CallableTraceRunner;
 
+import java.io.FileWriter;
+import java.io.IOException;
+
 /**
  * This class is used for the Concolic execution lab.
  * @author Clinton Cao, Sicco Verwer
@@ -73,6 +76,15 @@ public class PathTracker {
             System.out.println(PathTracker.z3branches);
             System.out.print("New branch: ");
             System.out.println(new_branch);
+        //     try {
+        //     FileWriter writer = new FileWriter("output.txt", true);
+        //     writer.write("Model: " + PathTracker.z3model + "\n");
+        //     writer.write("Branches: " + PathTracker.z3branches + "\n");
+        //     writer.write("New branch: " + new_branch + "\n");
+        //     writer.close();
+        // } catch (IOException e) {
+        //     e.printStackTrace();
+        // }
         }
 
         if(solver.check() == Status.SATISFIABLE){
@@ -82,9 +94,11 @@ public class PathTracker {
             for(MyVar v : PathTracker.inputs){
                 new_inputs.add(m.evaluate(v.z3var, true).toString());
             }
+            ConcolicExecutionLab.isSatisfiable = true;
             ConcolicExecutionLab.newSatisfiableInput(new_inputs);
         } else {
-            //System.out.println("unsatisfiable");
+            ConcolicExecutionLab.isSatisfiable = false;
+            // System.out.println("unsatisfiable");
         }
         // Restore the state of the solver to remove the branch constraint
         solver.pop();
