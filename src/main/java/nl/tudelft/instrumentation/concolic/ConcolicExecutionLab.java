@@ -1,7 +1,11 @@
 package nl.tudelft.instrumentation.concolic;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.io.FileWriter;
+import java.io.IOException;
 
 import com.microsoft.z3.*;
 
@@ -35,6 +39,8 @@ public class ConcolicExecutionLab {
     static int maxxTraceBranches = 0;
     static List<String> best_trace = new ArrayList<>();
     static Set<List<String>> previouslyVisitedTraces = new HashSet<>();
+    static long startTime = System.currentTimeMillis();
+    static Set<String> errorCodes = new HashSet<>();
 
     static void initialize(String[] inputSymbols){
         // Initialise a random trace from the input symbols of the problem.
@@ -310,7 +316,26 @@ public class ConcolicExecutionLab {
     }
 
     public static void output(String out){
-        // System.out.println(out);
+        Pattern pattern = Pattern.compile(".*error_(\\d+).*");
+                Matcher matcher = pattern.matcher(out);
+                if (matcher.matches()) {
+                        String matchedInteger = matcher.group(1);
+                        if (!errorCodes.contains(matchedInteger)) {
+                                errorCodes.add(matchedInteger);
+                                long timestamp = (System.currentTimeMillis() - startTime) / 1000;
+                                writeToCSV(timestamp, matchedInteger);
+                        }
+
+                }
     }
+
+    private static void writeToCSV(long timestamp, String matchedInteger) {
+        try (FileWriter writer = new FileWriter("./error_codes/error_log_concolic_prob11.csv", true)) {
+            writer.write(timestamp + "," + matchedInteger + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
 }
