@@ -10,13 +10,18 @@ import java.io.IOException;
 import com.microsoft.z3.*;
 
 
-class Pair<A, B> {
+class Pair<A, B extends Comparable<B>> implements Comparable<Pair<A, B>> {
     A first;
     B second;
 
     public Pair(A first, B second) {
         this.first = first;
         this.second = second;
+    }
+
+    @Override
+    public int compareTo(Pair<A, B> other) {
+        return this.second.compareTo(other.second);
     }
 }
 
@@ -39,7 +44,7 @@ public class ConcolicExecutionLab {
     static List<Set<String>> previouslyVisitedBranches = new ArrayList<>();
     static int maxxTraceBranches = 0;
     static List<String> best_trace = new ArrayList<>();
-    static Set<List<String>> previouslyVisitedTraces = new HashSet<>();
+    static Map<List<String>, Integer> previouslyVisitedTraces = new HashMap<>();
     static long startTime = System.currentTimeMillis();
     static Set<String> errorCodes = new HashSet<>();
     static int currentLine = 0;
@@ -113,11 +118,12 @@ public class ConcolicExecutionLab {
         switch (operator) {
             case "+":
                 // System.out.println(new MyVar(PathTracker.ctx.mkIntConst(var.toString())).z3var);
-                return new MyVar(PathTracker.ctx.mkIntConst(var.toString()));
+                return new MyVar(PathTracker.ctx.mkMul(var, PathTracker.ctx.mkInt(1)));
                 // return new MyVar(PathTracker.ctx.mkInt(var.toString()));
             case "-": 
                 // System.out.println(new MyVar(PathTracker.ctx.mkIntConst("-" + var.toString())).z3var);
-                return new MyVar(PathTracker.ctx.mkIntConst("-" + var.toString()));
+                // return new MyVar(PathTracker.ctx.mkIntConst("-" + var.toString()));
+                return new MyVar(PathTracker.ctx.mkMul(var, PathTracker.ctx.mkInt(-1)));
                 // return new MyVar(PathTracker.ctx.mkInt(var.getNumArgs()));
             default:
                 throw new RuntimeException("Unsupported unary operator " + operator);
@@ -219,15 +225,19 @@ public class ConcolicExecutionLab {
                 .map(s -> s.replaceAll("\"", ""))
                 .collect(Collectors.toList());
         // System.out.println("New inputs found: " + trimmed_new_inputs);
-        // if (!previouslyVisitedTraces.contains(trimmed_new_inputs)) {
-            // previouslyVisitedTraces.add(trimmed_new_inputs);
+        if (previouslyVisitedTraces.get(trimmed_new_inputs) == null) {
+            previouslyVisitedTraces.put(trimmed_new_inputs, 0);
             // System.out.println(currentTraceBranches.size());
-            // q.add(new Pair<>(trimmed_new_inputs, currentTraceBranches.size()));
-        // }
+            q.add(new Pair<>(trimmed_new_inputs, 0));
+        }
+        else if (previouslyVisitedTraces.get(trimmed_new_inputs) <= 5) {
+            previouslyVisitedTraces.put(trimmed_new_inputs, previouslyVisitedTraces.get(trimmed_new_inputs)+1);
+            q.add(new Pair<>(trimmed_new_inputs, previouslyVisitedTraces.get(trimmed_new_inputs)-1));
+        }
 
         // if(!previouslyVisitedBranches.contains(currentTraceBranches)) {
             // previouslyVisitedBranches.add(currentTraceBranches);
-            q.add(new Pair<>(trimmed_new_inputs, currentTraceBranches.size()));
+            // q.add(new Pair<>(trimmed_new_inputs, currentTraceBranches.size()));
         // }
 
     }
@@ -282,9 +292,19 @@ public class ConcolicExecutionLab {
             try {
                 PathTracker.reset();
                 currentTraceBranches.clear();
+
+                //  if (r.nextDouble() < 0.7) {
+                //     List<Pair<List<String>, Integer>> tempList = new ArrayList<>(q);
+                //     Collections.shuffle(tempList);
+                //     q = new PriorityQueue<>(tempList);
+                //     System.out.println("MIL");
+                // }
+
                 if(q.isEmpty()){
+                    // System.out.println("MEWINNNNNNNNNNG");
                     currentTrace = generateRandomTrace(PathTracker.inputSymbols);
                 } else {
+                    // System.out.println("######## " + q.peek().first + " ### " +  q.peek().second);
                     currentTrace = q.poll().first;
                     // System.out.println("Primul " + currentTrace);
                     // for (int i = 0; i <= 100; i ++) {
