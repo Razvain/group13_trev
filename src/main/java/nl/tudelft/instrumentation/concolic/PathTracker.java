@@ -97,7 +97,7 @@ public class PathTracker {
             ConcolicExecutionLab.isSatisfiable = true;
             ConcolicExecutionLab.newSatisfiableInput(new_inputs);
         } else {
-            ConcolicExecutionLab.isSatisfiable = false;
+            // ConcolicExecutionLab.isSatisfiable = false;
             // System.out.println("unsatisfiable");
         }
         // Restore the state of the solver to remove the branch constraint

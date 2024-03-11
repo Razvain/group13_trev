@@ -30,17 +30,19 @@ public class ConcolicExecutionLab {
     static Random r = new Random();
     static Boolean isFinished = false;
     static List<String> currentTrace;
-    static int traceLength = 1000;
-    static PriorityQueue<Pair<List<String>, Integer>> q = new PriorityQueue<>(Comparator.comparingInt(pair -> pair.second));
+    static int traceLength = 150;
+    static PriorityQueue<Pair<List<String>, Integer>> q = new PriorityQueue<>(Comparator.comparingInt((Pair<List<String>, Integer> pair) -> pair.second).reversed());
     public static Boolean isSatisfiable = false;
     static Set<String> totalBranches = new HashSet<>();
     static Set<String> unsatisfiableBranches = new HashSet<>();
     static Set<String> currentTraceBranches = new HashSet<>();
+    static List<Set<String>> previouslyVisitedBranches = new ArrayList<>();
     static int maxxTraceBranches = 0;
     static List<String> best_trace = new ArrayList<>();
     static Set<List<String>> previouslyVisitedTraces = new HashSet<>();
     static long startTime = System.currentTimeMillis();
     static Set<String> errorCodes = new HashSet<>();
+    static int currentLine = 0;
 
     static void initialize(String[] inputSymbols){
         // Initialise a random trace from the input symbols of the problem.
@@ -93,36 +95,30 @@ public class ConcolicExecutionLab {
         // Handle the following binary operators: &, &&, |, ||
         switch (operator) {
             case "&&":
-                return new MyVar(PathTracker.ctx.mkITE(left_var, right_var, PathTracker.ctx.mkFalse()));
+                // return new MyVar(PathTracker.ctx.mkITE(left_var, right_var, PathTracker.ctx.mkFalse()));
+                return new MyVar(PathTracker.ctx.mkAnd(left_var, right_var));
             case "||":
-                return new MyVar(PathTracker.ctx.mkITE(left_var, PathTracker.ctx.mkTrue(), right_var));
+                // return new MyVar(PathTracker.ctx.mkITE(left_var, PathTracker.ctx.mkTrue(), right_var));
+                return new MyVar(PathTracker.ctx.mkOr(left_var, right_var));
             case "|":
                 return new MyVar(PathTracker.ctx.mkOr(left_var, right_var));
-                // BitVecExpr bitLeft = PathTracker.ctx.mkBV(left_var.getString(), 1);
-                // BitVecExpr bitRight = PathTracker.ctx.mkBV(right_var.getString(), 1);
-                // BitVecExpr result = PathTracker.ctx.mkBVOR(bitLeft, bitRight);
-                // return new MyVar(result);
             case "&":
                 return new MyVar(PathTracker.ctx.mkAnd(left_var, right_var));
-                // BitVecExpr bitALeft = PathTracker.ctx.mkBV(left_var.getString(), 1);
-                // BitVecExpr bitARight = PathTracker.ctx.mkBV(right_var.getString(), 1);
-                // BitVecExpr resultA = PathTracker.ctx.mkBVAND(bitALeft, bitARight);
-                // return new MyVar(resultA);
             default:
                 throw new RuntimeException("Unsupported binary operator " + operator);
         }
     }
 
     static MyVar createIntExpr(IntExpr var, String operator){
-        // Handle the following unary operators for numerical operations: +, -
-        // System.out.println("INTINTINTINTITSNINDDIS");
-        // System.out.println(var.toString());
-        // System.out.println(operator);
         switch (operator) {
             case "+":
-                return new MyVar(PathTracker.ctx.mkInt(var.toString())); 
-            case "-":
-                return new MyVar(PathTracker.ctx.mkInt("-" + var.toString()));
+                // System.out.println(new MyVar(PathTracker.ctx.mkIntConst(var.toString())).z3var);
+                return new MyVar(PathTracker.ctx.mkIntConst(var.toString()));
+                // return new MyVar(PathTracker.ctx.mkInt(var.toString()));
+            case "-": 
+                // System.out.println(new MyVar(PathTracker.ctx.mkIntConst("-" + var.toString())).z3var);
+                return new MyVar(PathTracker.ctx.mkIntConst("-" + var.toString()));
+                // return new MyVar(PathTracker.ctx.mkInt(var.getNumArgs()));
             default:
                 throw new RuntimeException("Unsupported unary operator " + operator);
         }
@@ -130,11 +126,6 @@ public class ConcolicExecutionLab {
     }
 
     static MyVar createIntExpr(IntExpr left_var, IntExpr right_var, String operator){
-        // Handle the following binary operators for numerical operations: +, -, /, *, %, ^, ==, <=, <, >= and >
-        // System.out.println("Input Expression for Int");
-        // System.out.println(left_var.toString());
-        // System.out.println(right_var.toString());
-        // System.out.println(operator);
         switch (operator) {
             case "+":
                 return new MyVar(PathTracker.ctx.mkAdd(left_var, right_var));
@@ -164,11 +155,6 @@ public class ConcolicExecutionLab {
     }
 
     static MyVar createStringExpr(SeqExpr left_var, SeqExpr right_var, String operator){
-    //    We only support String.equals
-        // System.out.println("Aici is da String");
-        // System.out.println(left_var);
-        // System.out.println(right_var);
-        // System.out.println(operator);
         if (operator.equals("==")) {
             return new MyVar(PathTracker.ctx.mkEq(left_var, right_var));
         }
@@ -177,21 +163,20 @@ public class ConcolicExecutionLab {
     }
 
     static void assign(MyVar var, String name, Expr value, Sort s){
-        // System.out.println("Aici isi da assign");
-        // System.out.println(var.name);
-        // System.out.println(var.z3var);
-        // System.out.println(name);
-        // System.out.println(value);
-        // System.out.println(s);
 
         // For single static assignment, whenever you encounter an assignment to an already existing variable
         // you create a new variable and assign it that value such that there is no confusion with the variable's
         // scope
-        Expr z3var = PathTracker.ctx.mkConst(PathTracker.ctx.mkSymbol(name + "_" + PathTracker.z3counter++), s);
+        // Expr z3var = PathTracker.ctx.mkConst(PathTracker.ctx.mkSymbol(name + "_" + PathTracker.z3counter++), s);
         // System.out.println(PathTracker.ctx.mkEq(z3var, value));
+        String newName = name + "_" + PathTracker.z3counter++;
+
+        // Create a new Z3 variable with the new name and the given sort
+        Expr z3var = PathTracker.ctx.mkConst(PathTracker.ctx.mkSymbol(newName), s);
         PathTracker.addToModel(PathTracker.ctx.mkEq(z3var, value));
 
-
+        var.name = newName;
+        var.z3var = z3var;
 
         // return new MyVar(PathTracker.ctx.mkEq(PathTracker.ctx.mkConst()))
         // All variable assignments, use single static assignment
@@ -205,19 +190,20 @@ public class ConcolicExecutionLab {
         // PathTracker.solve((BoolExpr) condition.z3var, false);
         totalBranches.add("line: " + line_nr + " value: " + value);
         currentTraceBranches.add("line: " + line_nr + " value: " + value);
-        if(!unsatisfiableBranches.contains("line: " + line_nr + " value: " + !value)){
-            
+        if(!unsatisfiableBranches.contains("line: " + line_nr + " value: " + (!value))){
+            isSatisfiable = false;
+            currentLine = line_nr;
             if (value == true) {
                 PathTracker.solve(PathTracker.ctx.mkEq(condition.z3var, PathTracker.ctx.mkFalse()), false);
                 PathTracker.addToBranches(PathTracker.ctx.mkEq(condition.z3var, PathTracker.ctx.mkTrue()));
                 if (!isSatisfiable) {
-                    unsatisfiableBranches.add("line: " + line_nr + " value: " + !value);
+                    unsatisfiableBranches.add("line: " + line_nr + " value: " + (!value));
                 }
             } else {
                 PathTracker.solve(PathTracker.ctx.mkEq(condition.z3var, PathTracker.ctx.mkTrue()), false);
                 PathTracker.addToBranches(PathTracker.ctx.mkEq(condition.z3var, PathTracker.ctx.mkFalse()));
                 if (!isSatisfiable) {
-                        unsatisfiableBranches.add("line: " + line_nr + " value: " + !value);
+                        unsatisfiableBranches.add("line: " + line_nr + " value: " + (!value));
                     }
             }
             
@@ -233,10 +219,16 @@ public class ConcolicExecutionLab {
                 .map(s -> s.replaceAll("\"", ""))
                 .collect(Collectors.toList());
         // System.out.println("New inputs found: " + trimmed_new_inputs);
-        if (!previouslyVisitedTraces.contains(trimmed_new_inputs)) {
-            previouslyVisitedTraces.add(trimmed_new_inputs);
+        // if (!previouslyVisitedTraces.contains(trimmed_new_inputs)) {
+            // previouslyVisitedTraces.add(trimmed_new_inputs);
+            // System.out.println(currentTraceBranches.size());
+            // q.add(new Pair<>(trimmed_new_inputs, currentTraceBranches.size()));
+        // }
+
+        // if(!previouslyVisitedBranches.contains(currentTraceBranches)) {
+            // previouslyVisitedBranches.add(currentTraceBranches);
             q.add(new Pair<>(trimmed_new_inputs, currentTraceBranches.size()));
-        }
+        // }
 
     }
 
@@ -257,7 +249,7 @@ public class ConcolicExecutionLab {
         List<String> mutatedTrace = new ArrayList<>(currentTrace);
         Random random = new Random();
                 
-        for (int i = 0; i < random.nextInt(300); i ++) {
+        for (int i = 0; i < random.nextInt(100) + 50; i ++) {
 
         //   int addIndex = random.nextInt(mutatedTrace.size() + 1);   
           String addedSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
@@ -294,8 +286,10 @@ public class ConcolicExecutionLab {
                     currentTrace = generateRandomTrace(PathTracker.inputSymbols);
                 } else {
                     currentTrace = q.poll().first;
+                    // System.out.println("Primul " + currentTrace);
                     // for (int i = 0; i <= 100; i ++) {
                     currentTrace = fuzz(PathTracker.inputSymbols);
+                    // System.out.println("Second: " + currentTrace);
                     // }
                 }
                 PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
