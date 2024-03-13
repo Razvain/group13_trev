@@ -35,7 +35,7 @@ public class ConcolicExecutionLab {
     static Random r = new Random();
     static Boolean isFinished = false;
     static List<String> currentTrace;
-    static int traceLength = 150;
+    static int traceLength = 200;
     static PriorityQueue<Pair<List<String>, Integer>> q = new PriorityQueue<>(Comparator.comparingInt((Pair<List<String>, Integer> pair) -> pair.second).reversed());
     public static Boolean isSatisfiable = false;
     static Set<String> totalBranches = new HashSet<>();
@@ -92,7 +92,6 @@ public class ConcolicExecutionLab {
         if (operator.equals("!")) {
             return new MyVar(PathTracker.ctx.mkNot(var));
         }
-        // error("Unsupported unary operator " + operator);
         throw new RuntimeException("Unsupported unary operator " + operator);
     }
 
@@ -100,10 +99,8 @@ public class ConcolicExecutionLab {
         // Handle the following binary operators: &, &&, |, ||
         switch (operator) {
             case "&&":
-                // return new MyVar(PathTracker.ctx.mkITE(left_var, right_var, PathTracker.ctx.mkFalse()));
                 return new MyVar(PathTracker.ctx.mkAnd(left_var, right_var));
             case "||":
-                // return new MyVar(PathTracker.ctx.mkITE(left_var, PathTracker.ctx.mkTrue(), right_var));
                 return new MyVar(PathTracker.ctx.mkOr(left_var, right_var));
             case "|":
                 return new MyVar(PathTracker.ctx.mkOr(left_var, right_var));
@@ -117,14 +114,9 @@ public class ConcolicExecutionLab {
     static MyVar createIntExpr(IntExpr var, String operator){
         switch (operator) {
             case "+":
-                // System.out.println(new MyVar(PathTracker.ctx.mkIntConst(var.toString())).z3var);
                 return new MyVar(PathTracker.ctx.mkMul(var, PathTracker.ctx.mkInt(1)));
-                // return new MyVar(PathTracker.ctx.mkInt(var.toString()));
             case "-": 
-                // System.out.println(new MyVar(PathTracker.ctx.mkIntConst("-" + var.toString())).z3var);
-                // return new MyVar(PathTracker.ctx.mkIntConst("-" + var.toString()));
-                return new MyVar(PathTracker.ctx.mkMul(var, PathTracker.ctx.mkInt(-1)));
-                // return new MyVar(PathTracker.ctx.mkInt(var.getNumArgs()));
+                return new MyVar(PathTracker.ctx.mkUnaryMinus(var));
             default:
                 throw new RuntimeException("Unsupported unary operator " + operator);
         }
@@ -165,7 +157,6 @@ public class ConcolicExecutionLab {
             return new MyVar(PathTracker.ctx.mkEq(left_var, right_var));
         }
         throw new RuntimeException("Unsupported binary operator " + operator);
-        // return new MyVar(PathTracker.ctx.mkEq(left_var, right_var));
     }
 
     static void assign(MyVar var, String name, Expr value, Sort s){
@@ -173,8 +164,6 @@ public class ConcolicExecutionLab {
         // For single static assignment, whenever you encounter an assignment to an already existing variable
         // you create a new variable and assign it that value such that there is no confusion with the variable's
         // scope
-        // Expr z3var = PathTracker.ctx.mkConst(PathTracker.ctx.mkSymbol(name + "_" + PathTracker.z3counter++), s);
-        // System.out.println(PathTracker.ctx.mkEq(z3var, value));
         String newName = name + "_" + PathTracker.z3counter++;
 
         // Create a new Z3 variable with the new name and the given sort
@@ -184,8 +173,6 @@ public class ConcolicExecutionLab {
         var.name = newName;
         var.z3var = z3var;
 
-        // return new MyVar(PathTracker.ctx.mkEq(PathTracker.ctx.mkConst()))
-        // All variable assignments, use single static assignment
     }
 
 
@@ -224,21 +211,14 @@ public class ConcolicExecutionLab {
         List<String> trimmed_new_inputs = new_inputs.stream()
                 .map(s -> s.replaceAll("\"", ""))
                 .collect(Collectors.toList());
-        // System.out.println("New inputs found: " + trimmed_new_inputs);
         if (previouslyVisitedTraces.get(trimmed_new_inputs) == null) {
             previouslyVisitedTraces.put(trimmed_new_inputs, 0);
-            // System.out.println(currentTraceBranches.size());
             q.add(new Pair<>(trimmed_new_inputs, 0));
         }
-        else if (previouslyVisitedTraces.get(trimmed_new_inputs) <= 5) {
+        else if (previouslyVisitedTraces.get(trimmed_new_inputs) <= 3) {
             previouslyVisitedTraces.put(trimmed_new_inputs, previouslyVisitedTraces.get(trimmed_new_inputs)+1);
-            q.add(new Pair<>(trimmed_new_inputs, previouslyVisitedTraces.get(trimmed_new_inputs)-1));
+            q.add(new Pair<>(trimmed_new_inputs, previouslyVisitedTraces.get(trimmed_new_inputs))); // mai poti verifica sa fie aia cu cele mai multe currentBranch uri, o vizitezi de 3-5 ori, dupa treci la urmatoarea cu cel mai mare nr de branch uri dar mai mic ca antecedenta 
         }
-
-        // if(!previouslyVisitedBranches.contains(currentTraceBranches)) {
-            // previouslyVisitedBranches.add(currentTraceBranches);
-            // q.add(new Pair<>(trimmed_new_inputs, currentTraceBranches.size()));
-        // }
 
     }
 
@@ -255,13 +235,12 @@ public class ConcolicExecutionLab {
          * a complete random sequence using the given input symbols. Please
          * change it to your own code.
          */
-        // return generateRandomTrace(inputSymbols);
+
         List<String> mutatedTrace = new ArrayList<>(currentTrace);
         Random random = new Random();
                 
         for (int i = 0; i < random.nextInt(100) + 50; i ++) {
 
-        //   int addIndex = random.nextInt(mutatedTrace.size() + 1);   
           String addedSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
           mutatedTrace.add(addedSymbol);
     }
@@ -301,28 +280,20 @@ public class ConcolicExecutionLab {
                 // }
 
                 if(q.isEmpty()){
-                    // System.out.println("MEWINNNNNNNNNNG");
                     currentTrace = generateRandomTrace(PathTracker.inputSymbols);
                 } else {
                     // System.out.println("######## " + q.peek().first + " ### " +  q.peek().second);
                     currentTrace = q.poll().first;
-                    // System.out.println("Primul " + currentTrace);
-                    // for (int i = 0; i <= 100; i ++) {
                     currentTrace = fuzz(PathTracker.inputSymbols);
-                    // System.out.println("Second: " + currentTrace);
-                    // }
                 }
                 PathTracker.runNextFuzzedSequence(currentTrace.toArray(new String[0]));
                 System.out.println("totalBranches: " + totalBranches.size());
-                // System.out.println(totalBranches.toString());
                 if(currentTraceBranches.size() > maxxTraceBranches){
                     maxxTraceBranches = currentTraceBranches.size();
                     System.out.println("maxxTraceBranches: " + maxxTraceBranches);
                     best_trace = currentTrace;
                 }
 
-                // System.out.println("Woohoo, looping!");
-                // Thread.sleep(1000);
             } catch (Exception e) {
                 e.printStackTrace();
             }
