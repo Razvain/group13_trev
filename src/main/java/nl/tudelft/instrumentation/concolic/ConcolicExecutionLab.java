@@ -35,7 +35,7 @@ public class ConcolicExecutionLab {
     static Random r = new Random();
     static Boolean isFinished = false;
     static List<String> currentTrace;
-    static int traceLength = 200;
+    static int traceLength = 300;
     static PriorityQueue<Pair<List<String>, Integer>> q = new PriorityQueue<>(Comparator.comparingInt((Pair<List<String>, Integer> pair) -> pair.second).reversed());
     public static Boolean isSatisfiable = false;
     static Set<String> totalBranches = new HashSet<>();
@@ -168,10 +168,8 @@ public class ConcolicExecutionLab {
 
         // Create a new Z3 variable with the new name and the given sort
         Expr z3var = PathTracker.ctx.mkConst(PathTracker.ctx.mkSymbol(newName), s);
-        PathTracker.addToModel(PathTracker.ctx.mkEq(z3var, value));
-
-        var.name = newName;
         var.z3var = z3var;
+        PathTracker.addToModel(PathTracker.ctx.mkEq(z3var, value));
 
     }
 
@@ -239,7 +237,7 @@ public class ConcolicExecutionLab {
         List<String> mutatedTrace = new ArrayList<>(currentTrace);
         Random random = new Random();
                 
-        for (int i = 0; i < random.nextInt(100) + 50; i ++) {
+        for (int i = 0; i < random.nextInt(130) + 70; i ++) {
 
           String addedSymbol = inputSymbols[random.nextInt(inputSymbols.length)];
           mutatedTrace.add(addedSymbol);
@@ -272,17 +270,9 @@ public class ConcolicExecutionLab {
                 PathTracker.reset();
                 currentTraceBranches.clear();
 
-                //  if (r.nextDouble() < 0.7) {
-                //     List<Pair<List<String>, Integer>> tempList = new ArrayList<>(q);
-                //     Collections.shuffle(tempList);
-                //     q = new PriorityQueue<>(tempList);
-                //     System.out.println("MIL");
-                // }
-
                 if(q.isEmpty()){
                     currentTrace = generateRandomTrace(PathTracker.inputSymbols);
                 } else {
-                    // System.out.println("######## " + q.peek().first + " ### " +  q.peek().second);
                     currentTrace = q.poll().first;
                     currentTrace = fuzz(PathTracker.inputSymbols);
                 }
