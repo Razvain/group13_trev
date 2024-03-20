@@ -3,6 +3,8 @@ import java.util.*;
 
 public class PatchingLab {
 
+        // Academic Comeback
+
         static Random r = new Random();
         static boolean isFinished = false;
 
