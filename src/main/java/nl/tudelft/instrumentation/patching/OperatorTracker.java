@@ -146,7 +146,8 @@ public class OperatorTracker {
         } catch (CancellationException e) {
             wasCancelled = true;
             System.out.println("TIMEOUT!");
-            System.exit(-1);
+            // return false;
+            // System.exit(-1);
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -154,6 +155,7 @@ public class OperatorTracker {
 
         // Return the result
         if (wasCancelled) {
+            // System.out.println("Test " + testIndex + " completed");
             return false;
         }
         return checkOutput(testIndex);
