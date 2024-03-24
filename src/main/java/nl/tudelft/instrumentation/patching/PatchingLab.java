@@ -38,10 +38,10 @@ public class PatchingLab {
 
         
         //Paramenters
-        static int generationSize = 5;
+        static int generationSize = 10;
         static double mutationRate = 0.1;
         static double crossoverRate = 0.8;
-        static int matingPoolSize = 3;
+        static int matingPoolSize = 4;
         
         
         //Variables
@@ -86,6 +86,7 @@ public class PatchingLab {
         static double getFittness(List<Boolean> testResults) {
                 int nTests = OperatorTracker.tests.size();
                 int nTestsPassed = Collections.frequency(testResults, true);
+                System.out.println("Tests passed: " + nTestsPassed + "/" + nTests);
                 return (double)nTestsPassed/nTests;
                 
         }
@@ -125,7 +126,7 @@ public class PatchingLab {
                 List<GenerationIndividual> newPopulation = new ArrayList<GenerationIndividual>();
                 Double[] fitnessStore = new Double[generationSize];
                 for (int i = 0; i < generationSize; i++) {
-                        if(population.get(i).fitness == 0)
+                        if(population.get(i).fitness == 1.0)
                                 fitnessStore[i] = 1.0;
                         else
                                 fitnessStore[i] = (double)1/(1-population.get(i).fitness);
@@ -173,7 +174,7 @@ public class PatchingLab {
         static GenerationIndividual mutate(GenerationIndividual individual){
                 String[] newOperators = new String[individual.operators.length];
                 // int mutationPoint = (int) (individual.operators.length * mutationRate);
-                int mutationPoint = 10;
+                int mutationPoint = 5;
 
                 // List<Integer> operatorsToMutate = individual.tarantula.entrySet().stream()
                 //         .filter(entry -> entry.getValue() != 0.0)
@@ -183,7 +184,7 @@ public class PatchingLab {
                 //         .collect(Collectors.toList());
 
                 List<Integer> operatorsToMutate = individual.tarantula.entrySet().stream()
-                        .filter(entry -> entry.getValue() > 0.7)
+                        .filter(entry -> entry.getValue() > 0.9)
                         .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
                         .limit(mutationPoint)
                         .map(Map.Entry::getKey)
@@ -194,13 +195,13 @@ public class PatchingLab {
                 
                 for (int i = 0; i < individual.operators.length; i++) {
                         if (operatorsToMutate.contains(i)) {
-                                if (booleanOperators.contains(i)) {
-                                        newOperators[i] = individual.operators[i].equals("==") ? "!=" : "==";
-                                } else {
-                                        List<String> possibleOperators = new ArrayList<String>(Arrays.asList("!=", "==", "<", ">", "<=", ">="));
-                                        possibleOperators.remove(individual.operators[i]);
-                                        newOperators[i] = possibleOperators.get(r.nextInt(possibleOperators.size()));
-                                }
+                                // if (booleanOperators.contains(i)) {
+                                //         newOperators[i] = individual.operators[i].equals("==") ? "!=" : "==";
+                                // } else {
+                                List<String> possibleOperators = new ArrayList<String>(Arrays.asList("!=", "==", "<", ">", "<=", ">="));
+                                possibleOperators.remove(individual.operators[i]);
+                                newOperators[i] = possibleOperators.get(r.nextInt(possibleOperators.size()));
+                                // }
                         } else {
                                 newOperators[i] = individual.operators[i];
                         }
@@ -246,9 +247,11 @@ public class PatchingLab {
                 population.sort((a, b) -> Double.compare(b.fitness, a.fitness));
                 int i = 0;
                 while (newPopulation.size() < generationSize) {
+                        // newPopulation.add(mutate(bestIndividual));
                         newPopulation.add(population.get(i));
                         i++;
                 }
+
                 population = newPopulation;
         }
         
