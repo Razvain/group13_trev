@@ -1,4 +1,6 @@
 package nl.tudelft.instrumentation.patching;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 import org.checkerframework.checker.units.qual.A;
@@ -7,30 +9,10 @@ import java.util.stream.Collectors;
 class GenerationIndividual {
         String[] operators;
         double fitness;
-        Map<Integer, Double> tarantula = new HashMap<Integer, Double>();
-        Map<Integer, ArrayList<Integer>> operatorsHit = new HashMap<Integer, ArrayList<Integer>>();
 
         public GenerationIndividual(String[] operators, int fitness) {
                 this.operators = operators;
                 this.fitness = fitness;
-                for (int i = 0; i < operators.length; i++) {
-                        operatorsHit.put(i, new ArrayList<Integer>());
-                        tarantula.put(i, 0.0);
-                }
-        }
-
-        public GenerationIndividual(String[] operators, int fitness, Map<Integer, Double> tarantula, Map<Integer, ArrayList<Integer>> operatorsHit) {
-                this.operators = operators;
-                this.fitness = fitness;
-                this.tarantula = tarantula;
-                this.operatorsHit = operatorsHit;
-        }
-
-        public void reset() {
-                for (int i = 0; i < operators.length; i++) {
-                        operatorsHit.put(i, new ArrayList<Integer>());
-                        tarantula.put(i, 0.0);
-                }
         }
 }
 
@@ -39,7 +21,7 @@ public class PatchingLab {
         
         //Paramenters
         static int generationSize = 10;
-        static double mutationRate = 1;
+        static double mutationRate = 3;
         static double crossoverRate = 0.8;
         static int matingPoolSize = 8;
         
@@ -47,47 +29,36 @@ public class PatchingLab {
         //Variables
         static Random r = new Random();
         static boolean isFinished = false;
-        static String[] currentOperators = {};
         static List<GenerationIndividual> population = new ArrayList<GenerationIndividual>();
-        static Map<Integer, Double> currentTarantula = new HashMap<Integer, Double>();
-        static Map<Integer, ArrayList<Integer>> currentOperatorsHit = new HashMap<Integer, ArrayList<Integer>>();
+        static Map<Integer, Double> tarantula = new HashMap<Integer, Double>();
+        static Map<Integer, ArrayList<Integer>> operatorsHit = new HashMap<Integer, ArrayList<Integer>>();
         static GenerationIndividual bestIndividual = new GenerationIndividual(new String[]{}, 0);
         static Set<Integer> booleanOperators = new HashSet<Integer>();
-        static Set<Integer> faultyOperators = new HashSet<Integer>(); 
+        static Set<Integer> faultyOperators = new HashSet<Integer>();
+        static long startTime = System.currentTimeMillis();
 
         static void initialize(){
+                
+                for (int i = 0; i < OperatorTracker.operators.length; i++) {
+                        tarantula.put(i, 0.0);
+                }
+                for (int i = 0; i < OperatorTracker.operators.length; i++) {
+                        operatorsHit.put(i, new ArrayList<Integer>());
+                }
 
                 for (int i = 0; i < generationSize; i++) {
-                        String[] newOperators = new String[OperatorTracker.operators.length];
-                        for (int j = 0; j < OperatorTracker.operators.length; j++) {
-                                newOperators[j] = OperatorTracker.operators[j];
-                        }
-                        population.add(new GenerationIndividual(newOperators, 0));
+                        population.add(new GenerationIndividual(Arrays.copyOf(OperatorTracker.operators, OperatorTracker.operators.length), 0));
                 }
                 List<Boolean> testResults = OperatorTracker.runAllTests();
                 computeTarantula(testResults);
-                for (Map.Entry<Integer, Double> entry : currentTarantula.entrySet()) { 
+                for (Map.Entry<Integer, Double> entry : tarantula.entrySet()) { 
                         if (entry.getValue() > 0.9) {
                                 faultyOperators.add(entry.getKey());
                         }
-                } 
+                }
+                operatorsHit = null;
+                tarantula = null;
 
-                // currentOperators = OperatorTracker.operators;
-                // for (int i = 0; i < currentOperators.length; i++) {
-                //         operatorTarantulaMap.put(i, 0.0);
-                // }
-                // for (int i = 0; i < currentOperators.length; i++) {
-                //         operatorsHit.put(i, new ArrayList<Integer>());
-                // }
-                // for (int i = 0; i < generationSize; i++) {
-                //         String[] newOperators = new String[currentOperators.length];
-
-                //         for (int j = 0; j < currentOperators.length; j++) {
-                //                 newOperators[j] = currentOperators[j];
-                //         }
-                //         population.add(newOperators);
-                //         populationFitness.put(i, 0);
-                // }
         }
 
 
@@ -103,26 +74,19 @@ public class PatchingLab {
                 for (int i = 0; i < generationSize; i++) {
                         GenerationIndividual individual = population.get(i);
                         OperatorTracker.operators = individual.operators;
-                        currentOperatorsHit = individual.operatorsHit;
-                        currentTarantula = individual.tarantula;
-                        currentOperators = individual.operators;
                         List<Boolean> testResults = OperatorTracker.runAllTests();
-                        // computeTarantula(testResults);
                         individual.fitness = getFittness(testResults);
                         System.out.println("Individual fitness: " + individual.fitness);
                         if (individual.fitness > bestIndividual.fitness) {
                                 bestIndividual = individual;
                         }
                 }
+                System.gc();
         }
 
         static void runIndividual(GenerationIndividual individual){
                 OperatorTracker.operators = individual.operators;
-                currentOperatorsHit = individual.operatorsHit;
-                currentTarantula = individual.tarantula;
-                currentOperators = individual.operators;
                 List<Boolean> testResults = OperatorTracker.runAllTests();
-                // computeTarantula(testResults);
                 individual.fitness = getFittness(testResults);
                 System.out.println("Individual fitness: " + individual.fitness);
                 if (individual.fitness > bestIndividual.fitness) {
@@ -182,10 +146,10 @@ public class PatchingLab {
         static GenerationIndividual mutate(GenerationIndividual individual){
                 String[] newOperators = new String[individual.operators.length];
                 // int mutationPoint = (int) (individual.operators.length * mutationRate);
-                // int mutationPoint = 5;
+                int mutationPoint = 5;
 
-                // List<Integer> operatorsToMutate = individual.tarantula.entrySet().stream()
-                //         .filter(entry -> entry.getValue() != 0.0)
+                // List<Integer> operators_to_mutate = individual.tarantula.entrySet().stream()
+                //         // .filter(entry -> entry.getValue() != 0.0)
                 //         .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
                 //         .limit(mutationPoint)
                 //         .map(Map.Entry::getKey)
@@ -274,7 +238,8 @@ public class PatchingLab {
                 // Do something useful
                 // System.out.println("Operator: " + operator + " left: " + left + " right: " + right + " operator_nr: " + operator_nr);
                 // System.out.println(OperatorTracker.checkOutput(OperatorTracker.current_test));
-                currentOperatorsHit.get(operator_nr).add(OperatorTracker.current_test);
+                if (operatorsHit != null)
+                        operatorsHit.get(operator_nr).add(OperatorTracker.current_test);
 
                 String replacement = OperatorTracker.operators[operator_nr];
                 if(replacement.equals("!=")) return left != right;
@@ -288,7 +253,8 @@ public class PatchingLab {
 
         static boolean encounteredOperator(String operator, boolean left, boolean right, int operator_nr){
                 // Do something useful
-                currentOperatorsHit.get(operator_nr).add(OperatorTracker.current_test);
+                if (operatorsHit != null)
+                        operatorsHit.get(operator_nr).add(OperatorTracker.current_test);
                 booleanOperators.add(operator_nr);
 
                 String replacement = OperatorTracker.operators[operator_nr];
@@ -298,16 +264,16 @@ public class PatchingLab {
         }
 
         static void computeTarantula(List<Boolean> testResults) {
-                if (testResults == null || currentOperators == null || currentTarantula == null) {
+                if (testResults == null || OperatorTracker.operators == null || tarantula == null) {
                         return; // or throw an exception, depending on your use case
                 }
 
                 int nTests = OperatorTracker.tests.size();
                 int nTestsPassed = Collections.frequency(testResults, true);
-                for (int i = 0; i < currentOperators.length; i++) {
+                for (int i = 0; i < OperatorTracker.operators.length; i++) {
                         int currentOperatorsTrue = 0;
                         int currentOperatorsFalse = 0;
-                        List<Integer> operatorHits = currentOperatorsHit.get(i);
+                        List<Integer> operatorHits = operatorsHit.get(i);
                         if (operatorHits == null) {
                                 continue;
                         }
@@ -322,11 +288,11 @@ public class PatchingLab {
                                         currentOperatorsFalse++;
                                 }
                         }
-                        double tarantula = ((double)currentOperatorsFalse/(nTests-nTestsPassed)) / ((double)currentOperatorsTrue/nTestsPassed + (double)currentOperatorsFalse/(nTests-nTestsPassed));
-                        if (Double.isNaN(tarantula)) {
-                                tarantula = 0.0;
+                        double tarantulaVal = ((double)currentOperatorsFalse/(nTests-nTestsPassed)) / ((double)currentOperatorsTrue/nTestsPassed + (double)currentOperatorsFalse/(nTests-nTestsPassed));
+                        if (Double.isNaN(tarantulaVal)) {
+                                tarantulaVal = 0.0;
                         }
-                        currentTarantula.put(i, tarantula);
+                        tarantula.put(i, tarantulaVal);
                 }
         }
 
@@ -351,6 +317,10 @@ public class PatchingLab {
                 // Loop here, running your genetic algorithm until you think it is done
                 while (!isFinished) {
                         runGeneticAlgorithmOnce();
+                        if(bestIndividual.fitness == 1.0){
+                                isFinished = true;
+                        }
+                        writeToCSV((System.currentTimeMillis() - startTime) / 1000, bestIndividual.fitness);
                         // runGeneration();
                         System.out.println("Best fitness: " + bestIndividual.fitness);
                         // OperatorTracker.operators = currentOperators;
@@ -372,4 +342,12 @@ public class PatchingLab {
 
                 // System.out.println(out);
         }
+
+        private static void writeToCSV(long timestamp, Double fitness) {
+        try (FileWriter writer = new FileWriter("./convergence_graphs/convergence_graph_prob_15.csv", true)) {
+            writer.write(timestamp + "," + fitness + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
