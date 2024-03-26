@@ -21,8 +21,8 @@ public class PatchingLab {
         
         //Paramenters
         static int generationSize = 10;
-        static double mutationRate = 3;
-        static double crossoverRate = 0.8;
+        static double mutationRate = 1;
+        static double crossoverRate = 0.2;
         static int matingPoolSize = 8;
         
         
@@ -36,9 +36,11 @@ public class PatchingLab {
         static Set<Integer> booleanOperators = new HashSet<Integer>();
         static Set<Integer> faultyOperators = new HashSet<Integer>();
         static long startTime = System.currentTimeMillis();
+        static String[] initialOperators = new String[]{};
 
         static void initialize(){
                 
+                initialOperators = OperatorTracker.operators;
                 for (int i = 0; i < OperatorTracker.operators.length; i++) {
                         tarantula.put(i, 0.0);
                 }
@@ -79,20 +81,12 @@ public class PatchingLab {
                         System.out.println("Individual fitness: " + individual.fitness);
                         if (individual.fitness > bestIndividual.fitness) {
                                 bestIndividual = individual;
+                                writeBestIndividual();
                         }
                 }
                 System.gc();
         }
 
-        static void runIndividual(GenerationIndividual individual){
-                OperatorTracker.operators = individual.operators;
-                List<Boolean> testResults = OperatorTracker.runAllTests();
-                individual.fitness = getFittness(testResults);
-                System.out.println("Individual fitness: " + individual.fitness);
-                if (individual.fitness > bestIndividual.fitness) {
-                        bestIndividual = individual;
-                }
-        }
 
         static List<GenerationIndividual> roulleteWheelSelection(){
                 List<GenerationIndividual> newPopulation = new ArrayList<GenerationIndividual>();
@@ -124,46 +118,13 @@ public class PatchingLab {
                 return newPopulation;
         }
 
-        // static List<GenerationIndividual> tournamentSelection(){
-        //         Set<GenerationIndividual> newPopulation = new HashSet<GenerationIndividual>();
-        //         for (int i = 0; i < generationSize; i++) {
-        //                 int randomIndex1 = r.nextInt(generationSize);
-        //                 int randomIndex2 = r.nextInt(generationSize);
-        //                 GenerationIndividual individual1 = population.get(randomIndex1);
-        //                 GenerationIndividual individual2 = population.get(randomIndex2);
-        //                 if (individual1.fitness > individual2.fitness) {
-        //                         newPopulation.add(individual1);
-        //                 } else {
-        //                         newPopulation.add(individual2);
-        //                 }
-        //         }
-        //         return new ArrayList<GenerationIndividual>(newPopulation);
-        // }
         
 
         // verificam bool vs int 
 
         static GenerationIndividual mutate(GenerationIndividual individual){
                 String[] newOperators = new String[individual.operators.length];
-                // int mutationPoint = (int) (individual.operators.length * mutationRate);
-                int mutationPoint = 5;
 
-                // List<Integer> operators_to_mutate = individual.tarantula.entrySet().stream()
-                //         // .filter(entry -> entry.getValue() != 0.0)
-                //         .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
-                //         .limit(mutationPoint)
-                //         .map(Map.Entry::getKey)
-                //         .collect(Collectors.toList());
-
-                // List<Integer> operatorsToMutate = individual.tarantula.entrySet().stream()
-                //         .filter(entry -> entry.getValue() > 0.9)
-                //         .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
-                //         .limit(mutationPoint)
-                //         .map(Map.Entry::getKey)
-                //         .collect(Collectors.toList());
-
-                // System.out.println("Operators to mutate: " + operatorsToMutate);
-                // System.out.println("Tarantula: " + individual.tarantula);
                 List<Integer> operatorsToMutate = new ArrayList<Integer>();
                 for (int i = 0; i < mutationRate; i++) {
                         int randomIndex = r.nextInt(faultyOperators.size());
@@ -172,13 +133,13 @@ public class PatchingLab {
                 
                 for (int i = 0; i < individual.operators.length; i++) {
                         if (operatorsToMutate.contains(i)) {
-                                // if (booleanOperators.contains(i)) {
-                                //         newOperators[i] = individual.operators[i].equals("==") ? "!=" : "==";
-                                // } else {
-                                List<String> possibleOperators = new ArrayList<String>(Arrays.asList("!=", "==", "<", ">", "<=", ">="));
-                                possibleOperators.remove(individual.operators[i]);
-                                newOperators[i] = possibleOperators.get(r.nextInt(possibleOperators.size()));
-                                // }
+                                if (booleanOperators.contains(i)) {
+                                        newOperators[i] = individual.operators[i].equals("==") ? "!=" : "==";
+                                } else {
+                                        List<String> possibleOperators = new ArrayList<String>(Arrays.asList("!=", "==", "<", ">", "<=", ">="));
+                                        possibleOperators.remove(individual.operators[i]);
+                                        newOperators[i] = possibleOperators.get(r.nextInt(possibleOperators.size()));
+                                }
                         } else {
                                 newOperators[i] = individual.operators[i];
                         }
@@ -213,18 +174,14 @@ public class PatchingLab {
                         GenerationIndividual parent1 = selectionResult.get(r.nextInt(selectionResult.size()));
                         GenerationIndividual parent2 = selectionResult.get(r.nextInt(selectionResult.size()));
                         List<GenerationIndividual> children = crossover(parent1, parent2);
-                        // runIndividual(children.get(0));
-                        // runIndividual(children.get(1));
                         newPopulation.add(mutate(children.get(0)));
                         newPopulation.add(mutate(children.get(1)));
                 }
                 
                 newPopulation.add(bestIndividual);
-                //Sort population by fitness reverse
                 population.sort((a, b) -> Double.compare(b.fitness, a.fitness));
                 int i = 0;
                 while (newPopulation.size() < generationSize) {
-                        // newPopulation.add(mutate(bestIndividual));
                         newPopulation.add(population.get(i));
                         i++;
                 }
@@ -236,8 +193,6 @@ public class PatchingLab {
         // encounteredOperator gets called for each operator encountered while running tests
         static boolean encounteredOperator(String operator, int left, int right, int operator_nr){
                 // Do something useful
-                // System.out.println("Operator: " + operator + " left: " + left + " right: " + right + " operator_nr: " + operator_nr);
-                // System.out.println(OperatorTracker.checkOutput(OperatorTracker.current_test));
                 if (operatorsHit != null)
                         operatorsHit.get(operator_nr).add(OperatorTracker.current_test);
 
@@ -265,7 +220,7 @@ public class PatchingLab {
 
         static void computeTarantula(List<Boolean> testResults) {
                 if (testResults == null || OperatorTracker.operators == null || tarantula == null) {
-                        return; // or throw an exception, depending on your use case
+                        return;
                 }
 
                 int nTests = OperatorTracker.tests.size();
@@ -299,21 +254,6 @@ public class PatchingLab {
         static void run() {
                 initialize();
 
-                // Place the code here you want to run once:
-                // You want to change this of course, this is just an example
-                // Tests are loaded from resources/rers2020_test_cases. If you are you are using
-                // your own tests, make sure you put them in the same folder with the same
-                // naming convention.
-                // List<Boolean> testResults = OperatorTracker.runAllTests();
-                // int nTests = OperatorTracker.tests.size();
-                // int nTestsPassed = Collections.frequency(testResults, true);
-                // System.out.println("Initially, " + nTestsPassed + "/" + nTests
-                // + " passed. Fitness: " + (double)nTestsPassed/nTests
-                // );
-                // computeTarantula(testResults, nTests, nTestsPassed);
-                // System.out.println("Operator Tarantula Map: " + operatorTarantulaMap);
-                // System.out.println("Operators: " + operatorsHit.size());
-
                 // Loop here, running your genetic algorithm until you think it is done
                 while (!isFinished) {
                         runGeneticAlgorithmOnce();
@@ -321,18 +261,7 @@ public class PatchingLab {
                                 isFinished = true;
                         }
                         writeToCSV((System.currentTimeMillis() - startTime) / 1000, bestIndividual.fitness);
-                        // runGeneration();
                         System.out.println("Best fitness: " + bestIndividual.fitness);
-                        // OperatorTracker.operators = currentOperators;
-                        // testResults = OperatorTracker.runAllTests();
-                        // nTests = OperatorTracker.tests.size();
-                        // nTestsPassed = Collections.frequency(testResults, true);
-                        // computeTarantula(testResults, nTests, nTestsPassed);
-                        // System.out.println("After a while, " + nTestsPassed + "/" + nTests
-                        // + " passed. Fitness: " + (double)nTestsPassed/nTests
-                        // );
-                        // System.out.println("Operator Tarantula Map: " + operatorTarantulaMap);
-                        // Do things!
                 }
         }
 
@@ -344,10 +273,18 @@ public class PatchingLab {
         }
 
         private static void writeToCSV(long timestamp, Double fitness) {
-        try (FileWriter writer = new FileWriter("./convergence_graphs/convergence_graph_prob_15.csv", true)) {
-            writer.write(timestamp + "," + fitness + "\n");
-        } catch (IOException e) {
-            e.printStackTrace();
+                try (FileWriter writer = new FileWriter("./correct_conv/convergence_graph_prob_15.csv", true)) {
+                writer.write(timestamp + "," + fitness + "\n");
+                } catch (IOException e) {
+                e.printStackTrace();
+                }
         }
-    }
+
+        private static void writeBestIndividual() {
+                try (FileWriter writer = new FileWriter("./correct_operators/best_individual_prob_15.txt", true)) {
+                writer.write("Best fitness" + bestIndividual.fitness + " " + Arrays.toString(bestIndividual.operators) + "\n");
+                } catch (IOException e) {
+                e.printStackTrace();
+                }
+        }
 }
