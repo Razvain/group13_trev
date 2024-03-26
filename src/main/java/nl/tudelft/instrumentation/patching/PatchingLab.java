@@ -39,9 +39,9 @@ public class PatchingLab {
         
         //Paramenters
         static int generationSize = 10;
-        static double mutationRate = 0.1;
+        static double mutationRate = 1;
         static double crossoverRate = 0.8;
-        static int matingPoolSize = 4;
+        static int matingPoolSize = 8;
         
         
         //Variables
@@ -53,6 +53,7 @@ public class PatchingLab {
         static Map<Integer, ArrayList<Integer>> currentOperatorsHit = new HashMap<Integer, ArrayList<Integer>>();
         static GenerationIndividual bestIndividual = new GenerationIndividual(new String[]{}, 0);
         static Set<Integer> booleanOperators = new HashSet<Integer>();
+        static Set<Integer> faultyOperators = new HashSet<Integer>(); 
 
         static void initialize(){
 
@@ -104,6 +105,14 @@ public class PatchingLab {
                         System.out.println("Individual fitness: " + individual.fitness);
                         if (individual.fitness > bestIndividual.fitness) {
                                 bestIndividual = individual;
+                                faultyOperators.clear();
+                                computeTarantula(testResults);
+                                // System.out.println("Tarantula: " + currentTarantula);
+                                for (Map.Entry<Integer, Double> entry : currentTarantula.entrySet()) { 
+                                        if (entry.getValue() > 0.9) {
+                                                faultyOperators.add(entry.getKey());
+                                        }
+                                } 
                         }
                 }
         }
@@ -174,7 +183,7 @@ public class PatchingLab {
         static GenerationIndividual mutate(GenerationIndividual individual){
                 String[] newOperators = new String[individual.operators.length];
                 // int mutationPoint = (int) (individual.operators.length * mutationRate);
-                int mutationPoint = 5;
+                // int mutationPoint = 5;
 
                 // List<Integer> operatorsToMutate = individual.tarantula.entrySet().stream()
                 //         .filter(entry -> entry.getValue() != 0.0)
@@ -183,15 +192,20 @@ public class PatchingLab {
                 //         .map(Map.Entry::getKey)
                 //         .collect(Collectors.toList());
 
-                List<Integer> operatorsToMutate = individual.tarantula.entrySet().stream()
-                        .filter(entry -> entry.getValue() > 0.9)
-                        .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
-                        .limit(mutationPoint)
-                        .map(Map.Entry::getKey)
-                        .collect(Collectors.toList());
+                // List<Integer> operatorsToMutate = individual.tarantula.entrySet().stream()
+                //         .filter(entry -> entry.getValue() > 0.9)
+                //         .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
+                //         .limit(mutationPoint)
+                //         .map(Map.Entry::getKey)
+                //         .collect(Collectors.toList());
 
                 // System.out.println("Operators to mutate: " + operatorsToMutate);
                 // System.out.println("Tarantula: " + individual.tarantula);
+                List<Integer> operatorsToMutate = new ArrayList<Integer>();
+                for (int i = 0; i < mutationRate; i++) {
+                        int randomIndex = r.nextInt(faultyOperators.size());
+                        operatorsToMutate.add(faultyOperators.toArray(new Integer[faultyOperators.size()])[randomIndex]);
+                }
                 
                 for (int i = 0; i < individual.operators.length; i++) {
                         if (operatorsToMutate.contains(i)) {
@@ -236,8 +250,8 @@ public class PatchingLab {
                         GenerationIndividual parent1 = selectionResult.get(r.nextInt(selectionResult.size()));
                         GenerationIndividual parent2 = selectionResult.get(r.nextInt(selectionResult.size()));
                         List<GenerationIndividual> children = crossover(parent1, parent2);
-                        runIndividual(children.get(0));
-                        runIndividual(children.get(1));
+                        // runIndividual(children.get(0));
+                        // runIndividual(children.get(1));
                         newPopulation.add(mutate(children.get(0)));
                         newPopulation.add(mutate(children.get(1)));
                 }
