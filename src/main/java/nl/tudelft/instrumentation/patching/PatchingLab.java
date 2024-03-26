@@ -64,6 +64,13 @@ public class PatchingLab {
                         }
                         population.add(new GenerationIndividual(newOperators, 0));
                 }
+                List<Boolean> testResults = OperatorTracker.runAllTests();
+                computeTarantula(testResults);
+                for (Map.Entry<Integer, Double> entry : currentTarantula.entrySet()) { 
+                        if (entry.getValue() > 0.9) {
+                                faultyOperators.add(entry.getKey());
+                        }
+                } 
 
                 // currentOperators = OperatorTracker.operators;
                 // for (int i = 0; i < currentOperators.length; i++) {
@@ -100,19 +107,11 @@ public class PatchingLab {
                         currentTarantula = individual.tarantula;
                         currentOperators = individual.operators;
                         List<Boolean> testResults = OperatorTracker.runAllTests();
-                        computeTarantula(testResults);
+                        // computeTarantula(testResults);
                         individual.fitness = getFittness(testResults);
                         System.out.println("Individual fitness: " + individual.fitness);
                         if (individual.fitness > bestIndividual.fitness) {
                                 bestIndividual = individual;
-                                faultyOperators.clear();
-                                computeTarantula(testResults);
-                                // System.out.println("Tarantula: " + currentTarantula);
-                                for (Map.Entry<Integer, Double> entry : currentTarantula.entrySet()) { 
-                                        if (entry.getValue() > 0.9) {
-                                                faultyOperators.add(entry.getKey());
-                                        }
-                                } 
                         }
                 }
         }
@@ -123,7 +122,7 @@ public class PatchingLab {
                 currentTarantula = individual.tarantula;
                 currentOperators = individual.operators;
                 List<Boolean> testResults = OperatorTracker.runAllTests();
-                computeTarantula(testResults);
+                // computeTarantula(testResults);
                 individual.fitness = getFittness(testResults);
                 System.out.println("Individual fitness: " + individual.fitness);
                 if (individual.fitness > bestIndividual.fitness) {
@@ -364,12 +363,6 @@ public class PatchingLab {
                         // );
                         // System.out.println("Operator Tarantula Map: " + operatorTarantulaMap);
                         // Do things!
-                        try {
-                                System.out.println("Woohoo, looping!");
-                                Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                                e.printStackTrace();
-                        }
                 }
         }
 
